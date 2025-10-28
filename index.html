@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HKT QR Check-in</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f7fb;
+      color: #002d8b;
+      text-align: center;
+    }
+    header {
+      background: linear-gradient(90deg, #0050f5, #002d8b);
+      color: white;
+      padding: 15px 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    #scanner {
+      width: 90%;
+      max-width: 360px;
+      margin: 25px auto;
+    }
+    #result-box {
+      background: white;
+      width: 90%;
+      max-width: 360px;
+      margin: 15px auto;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      display: none;
+    }
+    #id-display {
+      font-size: 1.1rem;
+      color: #0050f5;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    button {
+      background: #0050f5;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.2s;
+      width: 100%;
+      max-width: 200px;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      background: #003ec7;
+    }
+    #message {
+      margin-top: 10px;
+      font-weight: 500;
+      display: none;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+
+  <header>🎯 BinhTran | QR Check-in</header>
+
+  <div id="scanner"></div>
+
+  <div id="result-box">
+    <div id="id-display"></div>
+    <button id="checkin-btn" disabled>Check-in</button>
+    <div id="message"></div>
+  </div>
+
+  <script>
+    const endpoint = "https://zhubliberal.cloud/webhook/demo-qr-checkin"; // endpoint n8n
+    let currentId = null;
+
+    const idDisplay = document.getElementById("id-display");
+    const message = document.getElementById("message");
+    const resultBox = document.getElementById("result-box");
+    const checkinBtn = document.getElementById("checkin-btn");
+
+    function showMessage(text, type) {
+      message.textContent = text;
+      message.className = type;
+      message.style.display = "block";
+    }
+
+    function onScanSuccess(decodedText) {
+      currentId = decodedText.trim();
+      idDisplay.textContent = `Mã quét được: ${currentId}`;
+      resultBox.style.display = "block";
+      checkinBtn.disabled = false;
+      message.style.display = "none";
+    }
+
+    checkinBtn.addEventListener("click", async () => {
+      if (!currentId) return;
+      checkinBtn.disabled = true;
+      showMessage("⏳ Đang gửi check-in...", "info");
+
+      try {
+        const res = await fetch(`${endpoint}?id=${encodeURIComponent(currentId)}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "API-Key": "binh@12345"
+          },
+          body: JSON.stringify({ id: currentId })
+        });
+
+        if (res.ok) {
+          showMessage(`✅ Check-in thành công cho ID: ${currentId}`, "success");
+        } else {
+          showMessage(`⚠️ Check-in thất bại (${res.status})`, "error");
+        }
+      } catch (err) {
+        console.error(err);
+        showMessage("❌ Lỗi kết nối tới webhook", "error");
+      }
+
+      checkinBtn.disabled = false;
+    });
+
+    // Khởi tạo scanner
+    const html5QrCode = new Html5QrcodeScanner("scanner", { fps: 10, qrbox: 250 });
+    html5QrCode.render(onScanSuccess);
+  </script>
+</body>
+</html>
