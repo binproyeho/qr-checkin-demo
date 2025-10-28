@@ -42,6 +42,26 @@
       color: #0050f5;
       font-weight: 600;
       margin-bottom: 10px;
+      word-break: break-all;
+    }
+    .input-manual {
+      width: 90%;
+      max-width: 360px;
+      background: white;
+      margin: 10px auto;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .input-manual input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
     }
     button {
       background: #0050f5;
@@ -54,6 +74,11 @@
       transition: 0.2s;
       width: 100%;
       max-width: 200px;
+    }
+    .small-btn {
+      width: auto;
+      padding: 8px 12px;
+      max-width: none;
     }
     button:disabled {
       background: #ccc;
@@ -71,6 +96,13 @@
     }
     .success { background: #d4edda; color: #155724; }
     .error { background: #f8d7da; color: #721c24; }
+    .info { background: #e2e3f3; color: #002d8b; }
+    footer {
+      margin-top: 18px;
+      padding: 12px;
+      font-size: 0.9rem;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -79,20 +111,32 @@
 
   <div id="scanner"></div>
 
+  <!-- ô nhập ID thủ công -->
+  <div class="input-manual">
+    <input type="text" id="manualId" placeholder="Nhập ID thủ công nếu không quét được..." />
+    <button id="manual-send" class="small-btn">Xác nhận</button>
+  </div>
+
   <div id="result-box">
     <div id="id-display"></div>
     <button id="checkin-btn" disabled>Check-in</button>
     <div id="message"></div>
   </div>
 
+  <footer>⚡ Powered by <b>Bình Trần Fullstack</b></footer>
+
   <script>
-    const endpoint = "https://zhubliberal.cloud/webhook/demo-qr-checkin"; // endpoint n8n
+    // === Cấu hình endpoint webhook n8n ===
+    const endpoint = "https://zhubliberal.cloud/webhook/demo-qr-checkin"; // <-- thay nếu cần
+
     let currentId = null;
 
     const idDisplay = document.getElementById("id-display");
     const message = document.getElementById("message");
     const resultBox = document.getElementById("result-box");
     const checkinBtn = document.getElementById("checkin-btn");
+    const manualInput = document.getElementById("manualId");
+    const manualSend = document.getElementById("manual-send");
 
     function showMessage(text, type) {
       message.textContent = text;
@@ -100,6 +144,7 @@
       message.style.display = "block";
     }
 
+    // --- Khi quét QR thành công ---
     function onScanSuccess(decodedText) {
       currentId = decodedText.trim();
       idDisplay.textContent = `Mã quét được: ${currentId}`;
@@ -108,13 +153,14 @@
       message.style.display = "none";
     }
 
+    // --- Nút Check-in: gửi ID trong body JSON (không gửi query) ---
     checkinBtn.addEventListener("click", async () => {
       if (!currentId) return;
       checkinBtn.disabled = true;
       showMessage("⏳ Đang gửi check-in...", "info");
 
       try {
-        const res = await fetch(`${endpoint}?id=${encodeURIComponent(currentId)}`, {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -136,7 +182,23 @@
       checkinBtn.disabled = false;
     });
 
-    // Khởi tạo scanner
+    // --- Nút xác nhận ID thủ công ---
+    manualSend.addEventListener("click", () => {
+      const v = manualInput.value.trim();
+      if (!v) {
+        showMessage("⚠️ Vui lòng nhập ID trước khi gửi", "error");
+        return;
+      }
+      currentId = v;
+      idDisplay.textContent = `ID nhập thủ công: ${currentId}`;
+      resultBox.style.display = "block";
+      checkinBtn.disabled = false;
+      message.style.display = "none";
+      // không tự gửi — chờ bấm Check-in để gửi (giữ nguyên theo yêu cầu)
+      manualInput.value = "";
+    });
+
+    // === Khởi tạo scanner (Html5QrcodeScanner) ===
     const html5QrCode = new Html5QrcodeScanner("scanner", { fps: 10, qrbox: 250 });
     html5QrCode.render(onScanSuccess);
   </script>
